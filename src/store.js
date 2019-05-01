@@ -49,6 +49,31 @@ export class Store {
     // strict mode
     this.strict = strict
 
+    /**
+     * anno 这里的state(this._modules.root.state)可能为空，比如下面这种形式
+
+const moduleA = {
+  state: { ... },
+  mutations: { ... },
+  actions: { ... },
+  getters: { ... }
+}
+
+const moduleB = {
+  state: { ... },
+  mutations: { ... },
+  actions: { ... }
+}
+
+const store = new Vuex.Store({
+  modules: {
+    a: moduleA,
+    b: moduleB
+  }
+})
+     *
+     * 此时options中没有state属性，在module.js中会将该state设置为空对象{}
+     */
     const state = this._modules.root.state
 
     // init root module.
@@ -56,6 +81,11 @@ export class Store {
     // and collects all module getters inside this._wrappedGetters
     installModule(this, state, [], this._modules.root)
 
+    /**
+     * anno 让state中的数据成为响应式的
+     * 这里会生成一个vue实例，专门用于实现state响应式。即使是空的state也不影响，后边儿会将模块中的state通过Vue.set
+     * 响应式的添加到原始state上来。
+     */
     // initialize the store vm, which is responsible for the reactivity
     // (also registers _wrappedGetters as computed properties)
     resetStoreVM(this, state)
@@ -265,6 +295,16 @@ function resetStoreVM (store, state, hot) {
     })
   })
 
+  /**
+   * 通过一个只有state数据的Vue实例来实现state的响应式，这里也就是问什么Vuex只有Vue能使用的原因。
+   *
+   * 这个Vue实例我们成为`Vue存储实例`，一般使用的我们成为`Vue项目实例`，这俩的依赖关系是如何实现的呢？
+   *
+   * 关键就在于Vue中的`Dep`、`Watcher`，Dep有个静态属性`Dep.target = null`，不管几个实例，都是共用
+   * 这一个静态属性，当我们新建一个watcher时候，触发他的get就会进行依赖收集，这时候的target就是这个
+   * watcher实例，响应式属性中的Dep添加他的订阅者——watcher。跟几个vue实例没关系。
+   *
+   */
   // use a Vue instance to store the state tree
   // suppress warnings just in case the user has added
   // some funky global mixins
