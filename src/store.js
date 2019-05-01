@@ -305,6 +305,8 @@ function installModule (store, rootState, path, module, hot) {
   }
 
   // set state
+  // anno 这里如果是非root的话，下一步的`resetStoreVM`不会做响应式处理，因此当前安装module如果是非root上的state，需要
+  // 通过`Vue.set`将当前module上的state，以当前模块名字为键绑定到父state上，已达到响应式的目的。
   if (!isRoot && !hot) {
     const parentState = getNestedState(rootState, path.slice(0, -1))
     const moduleName = path[path.length - 1]
